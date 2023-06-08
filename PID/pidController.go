@@ -33,11 +33,11 @@ func (pid *PIDController) Update(measured float64) float64 {
 	// Proportional
 	proportional := pid.Kp * err
 
-	// Integrator (page 49)
+	// Integrator
 	pid.Integral += DeltaTime * err
 	integrator := pid.Integral * pid.Ki
 
-	// Differentiator (page 49)
+	// Differentiator
 	differentiator := pid.Kd * (err - pid.LastError) / DeltaTime
 
 	// control law
@@ -53,8 +53,4 @@ func (pid *PIDController) Update(measured float64) float64 {
 	pid.SumPrevErrors = pid.LastError + err
 
 	return pid.Output
-}
-
-func main() {
-
 }

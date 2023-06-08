@@ -1,7 +1,6 @@
-package main
+package Actuator
 
 import (
-	"ContainerManager/PID"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"log"
-	"os"
 	"time"
 )
 
@@ -62,7 +60,7 @@ func runContainer(client *client.Client, imagename string, containername string,
 	return nil
 }
 
-func alpine(containerName string) {
+func Alpine(containerName string) {
 	ctx := context.Background()
 
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -96,7 +94,7 @@ func calculateCPUPercentUnix(stats *types.StatsJSON) float64 {
 	return cpuPercent
 }
 
-func verifyCPU() {
+func VerifyCPU() {
 	// Conecte-se ao daemon do Docker
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -151,8 +149,8 @@ func GetContainerCount(cli *client.Client, imageName string) (int, error) {
 	return count, nil
 }
 
-// scaleOut verifica e atualiza o número de contêineres com base no valor fornecido
-func scaleOut(cli *client.Client, imageName string, newValue int) error {
+// Realiza o scale-out dos containeres
+func ScaleOut(cli *client.Client, imageName string, newValue int) error {
 	// Obtenha o total de contêineres atual
 	currentValue, err := GetContainerCount(cli, imageName)
 	if err != nil {
@@ -190,12 +188,9 @@ func scaleOut(cli *client.Client, imageName string, newValue int) error {
 
 	return nil
 }
-func scaleIn(imageName string, numContainersNeeded int) error {
-	// Crie um cliente Docker
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	if err != nil {
-		return err
-	}
+
+// Realiza o scale-in dos containeres
+func ScaleIn(cli *client.Client, imageName string, numContainersNeeded int) error {
 
 	// Obtenha a lista de todos os contêineres
 	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
@@ -204,12 +199,16 @@ func scaleIn(imageName string, numContainersNeeded int) error {
 	}
 
 	// Obtenha o número atual de contêineres da imagem
-	currentCount := 0
-	for _, container := range containers {
-		if container.Image == imageName {
-			currentCount++
-		}
+	//currentCount := 0
+	currentCount, err := GetContainerCount(cli, imageName)
+	if err != nil {
+		return err
 	}
+	//for _, container := range containers {
+	//	if container.Image == imageName {
+	//		currentCount++
+	//	}
+	//}
 
 	// Verifique se o número atual de contêineres é maior do que o número necessário
 	if currentCount > numContainersNeeded {
@@ -234,101 +233,6 @@ func scaleIn(imageName string, numContainersNeeded int) error {
 				}
 			}
 		}
-
-		fmt.Printf("Foram excluídos %d contêineres em excesso.\n", deletedCount)
-	} else {
-		fmt.Println("Não há contêineres em excesso.")
 	}
-
 	return nil
-}
-
-func main() {
-	// Especifica a versão da API do Docker
-	os.Setenv("DOCKER_API_VERSION", "1.42")
-
-	// Conecte-se ao daemon do Docker
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		panic(err)
-	}
-
-	// Especifique a imagem desejada
-	imageName := "alpine"
-
-	controller := PID.NewPIDController(-0.7, 0.005, 0.0)
-	measured := 70.0 // Exemplo de porcentagem de CPU utilizada medida
-	updateReplicas := 1.0
-	stop := false
-	lastInputControl := 0.0
-
-	for {
-		// Total de réplicas atualmente
-		replicas, err := GetContainerCount(cli, imageName)
-		if err != nil {
-			panic(err)
-		}
-
-		fmt.Printf("Output Measured: %.2f\n", measured)
-		inputControl := controller.Update(measured)
-
-		// Nivela o input control para o mínimo de réplicas
-		if inputControl < 1 {
-			inputControl = 1
-		}
-
-		fmt.Printf("Input Control: %.2f\n", inputControl)
-
-		// Implementa uma deadzone ou hysteresis (range 10% superior ou inferior para evitar mudanças frequentes)
-		bound := controller.Setpoint * 0.10
-		diff := measured - controller.Setpoint
-		if diff >= bound {
-			// Calcula o número de réplicas, acrescentando uma porcentagem baseada no input control, para acelarar a medida que o input control sobe
-			if inputControl > 5 {
-				if inputControl > lastInputControl {
-					updateReplicas += float64(replicas) * 0.1
-					err = scaleOut(cli, imageName, int(updateReplicas))
-					if err != nil {
-						fmt.Println("Erro ao realizar o scale-out:", err)
-					}
-				} else {
-					updateReplicas = float64(replicas)
-				}
-			} else {
-				if inputControl < lastInputControl {
-					updateReplicas -= float64(replicas) * 0.2
-					err := scaleIn(imageName, int(updateReplicas))
-					if err != nil {
-						fmt.Println("Erro ao realizar o scale-in:", err)
-					}
-				} else {
-					updateReplicas = float64(replicas)
-				}
-			}
-
-			//percentInputControl = inputControl / 100
-			//updateReplicas += float64(replicas) * percentInputControl
-
-			fmt.Printf("Estimaded Number of Replicas: %.2f\n", updateReplicas)
-			// Atualiza o número de réplicas
-			//err = scaleOut(cli, imageName, int(updateReplicas))
-			//if err != nil {
-			//	panic(err)
-			//}
-		}
-
-		// Simular mudanças nos valores medidos e de controle
-		if measured < 90 && stop == false {
-			measured += 1.0
-		} else {
-			measured -= 1.0
-			stop = true
-		}
-
-		time.Sleep(time.Second)
-		lastInputControl = inputControl
-	}
-
-	//verifyCPU()
-
 }
