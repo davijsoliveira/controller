@@ -273,9 +273,10 @@ func main() {
 		fmt.Printf("Input Control: %.2f\n", inputControl)
 
 		// Implementa uma deadzone ou hysteresis (range 10% superior ou inferior para evitar mudanças frequentes)
-		bound := controller.Setpoint * 0.10
-		diff := measured - controller.Setpoint
-		if diff >= bound {
+		rangeSetPoint := controller.Setpoint * 0.10
+		upperBound := measured - controller.Setpoint
+		lowerBound := controller.Setpoint - measured
+		if upperBound >= rangeSetPoint {
 			// Calcula o número de réplicas, acrescentando uma porcentagem baseada no input control, para acelarar a medida que o input control sobe
 			if inputControl > 5 {
 				if inputControl > lastInputControl {
@@ -287,18 +288,23 @@ func main() {
 				} else {
 					updateReplicas = float64(replicas)
 				}
-			} else {
-				if inputControl < lastInputControl {
+			}
+			fmt.Printf("Estimaded Number of Replicas: %.2f\n", updateReplicas)
+		}
+		if lowerBound >= rangeSetPoint {
+			if inputControl < 5 {
+				if inputControl <= lastInputControl {
 					updateReplicas -= float64(replicas) * 0.2
-					err := Actuator.ScaleIn(cli, imageName, int(updateReplicas))
-					if err != nil {
-						fmt.Println("Erro ao realizar o scale-in:", err)
+					if updateReplicas >= 1 {
+						err := Actuator.ScaleIn(cli, imageName, int(updateReplicas))
+						if err != nil {
+							fmt.Println("Erro ao realizar o scale-in:", err)
+						}
 					}
 				} else {
 					updateReplicas = float64(replicas)
 				}
 			}
-
 			fmt.Printf("Estimaded Number of Replicas: %.2f\n", updateReplicas)
 		}
 
