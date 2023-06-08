@@ -295,12 +295,14 @@ func main() {
 			if inputControl < 5 {
 				if inputControl <= lastInputControl {
 					updateReplicas -= float64(replicas) * 0.2
-					if updateReplicas >= 1 {
-						err := Actuator.ScaleIn(cli, imageName, int(updateReplicas))
-						if err != nil {
-							fmt.Println("Erro ao realizar o scale-in:", err)
-						}
+					if updateReplicas < 1 {
+						updateReplicas = 1
 					}
+					err := Actuator.ScaleIn(cli, imageName, int(updateReplicas))
+					if err != nil {
+						fmt.Println("Erro ao realizar o scale-in:", err)
+					}
+
 				} else {
 					updateReplicas = float64(replicas)
 				}
