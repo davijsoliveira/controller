@@ -26,13 +26,13 @@ func GetConnection() *client.Client {
 }
 
 type ContainersStats struct {
-	UpdatedNumberReplicas float64
+	ScaleNumberReplicas   float64
 	CurrentNumberReplicas int
 }
 
 func NewContainerStats() *ContainersStats {
 	return &ContainersStats{
-		UpdatedNumberReplicas: 1.0,
+		ScaleNumberReplicas:   1.0,
 		CurrentNumberReplicas: 1,
 	}
 }
