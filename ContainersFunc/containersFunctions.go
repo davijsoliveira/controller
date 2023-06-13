@@ -25,6 +25,29 @@ func GetConnection() *client.Client {
 	return cli
 }
 
+type ContainersStats struct {
+	UpdatedNumberReplicas float64
+	CurrentNumberReplicas int
+}
+
+func NewContainerStats() *ContainersStats {
+	return &ContainersStats{
+		UpdatedNumberReplicas: 1.0,
+		CurrentNumberReplicas: 1,
+	}
+}
+
+var ContainersStatsRepository = NewContainerStats()
+
+func (stats *ContainersStats) CurrentNumberContainers() {
+	cli := GetConnection()
+	currentReplicas, err := GetContainerCount(cli)
+	stats.CurrentNumberReplicas = currentReplicas
+	if err != nil {
+		panic(err)
+	}
+}
+
 func runContainer(client *client.Client, imagename string, containername string, port string, inputEnv []string) error {
 
 	// Configured hostConfig:
