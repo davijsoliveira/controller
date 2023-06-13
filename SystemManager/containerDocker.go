@@ -4,33 +4,21 @@ import (
 	"ContainerManager/Commons"
 	"ContainerManager/PID"
 	"ContainerManager/Sensor"
+	"ContainerManager/SharedControl"
 	"fmt"
-	"github.com/docker/docker/client"
-	"os"
 	"time"
 )
 
 func main() {
-	// Especifica a versão da API do Docker
-	os.Setenv("DOCKER_API_VERSION", "1.42")
-
-	// Conexão com o Docker
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		panic(err)
-	}
-
 	// Imagem da aplicação
-	imageName := "alpine"
+	//imageName := Commons.ImageName
 
-	avgCPU := Sensor.CalculateAverageCPU(cli, imageName)
-	fmt.Printf("A média de utilização de CPU dos contêineres da imagem %s é: %.2f%%\n", imageName, avgCPU)
+	avgCPU := Sensor.CalculateAverageCPU()
+	fmt.Printf("A média de utilização de CPU dos containers da imagem %s é: %.2f%%\n", Commons.ImageName, avgCPU)
 
 	// Instanciar controlador
 	controller := PID.NewPIDController(-0.7, 0.005, 0.0)
 	measured := 70.0
-
-	//updatedNumberReplicas := 1.0
 	stop := false
 
 	for {
@@ -41,7 +29,7 @@ func main() {
 		fmt.Printf("Input Control: %.2f\n", inputControl)
 
 		// Filtro de hysteresis
-		Commons.Hysteresis(cli, imageName, controller.LastInputControl, inputControl, controller.Setpoint, measured)
+		SharedControl.Hysteresis(controller.LastInputControl, inputControl, controller.Setpoint, measured)
 
 		// Simular mudanças nos valores medidos e de controle
 		if measured < 90 && stop == false {

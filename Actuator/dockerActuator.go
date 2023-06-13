@@ -1,18 +1,19 @@
 package Actuator
 
 import (
+	"ContainerManager/Commons"
 	"ContainerManager/ContainersFunc"
 	"context"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
 	"time"
 )
 
 // Realiza o scale-out dos containeres
-func ScaleOut(cli *client.Client, imageName string, newValue int) error {
+func ScaleOut(newValue int) error {
+	cli := ContainersFunc.GetConnection()
 	// Obtem o total de containers atual
-	currentValue, err := ContainersFunc.GetContainerCount(cli, imageName)
+	currentValue, err := ContainersFunc.GetContainerCount(cli)
 	if err != nil {
 		return err
 	}
@@ -33,7 +34,7 @@ func ScaleOut(cli *client.Client, imageName string, newValue int) error {
 		// Inicia novos containers para atingir o valor estimado
 		for i := 0; i < diff; i++ {
 			currentTime := time.Now().Format("20060102150405")
-			name := imageName + currentTime
+			name := Commons.ImageName + currentTime
 			resp, err := cli.ContainerCreate(ctx, containerConfig, nil, nil, nil, name)
 			if err != nil {
 				return err
@@ -49,7 +50,8 @@ func ScaleOut(cli *client.Client, imageName string, newValue int) error {
 }
 
 // Realiza o scale-in dos containeres
-func ScaleIn(cli *client.Client, imageName string, numContainersNeeded int) error {
+func ScaleIn(numContainersNeeded int) error {
+	cli := ContainersFunc.GetConnection()
 
 	// Obtenha a lista de todos os containers
 	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
@@ -58,7 +60,7 @@ func ScaleIn(cli *client.Client, imageName string, numContainersNeeded int) erro
 	}
 
 	// Obtenha o número atual de containers da imagem
-	currentCount, err := ContainersFunc.GetContainerCount(cli, imageName)
+	currentCount, err := ContainersFunc.GetContainerCount(cli)
 	if err != nil {
 		return err
 	}
@@ -73,7 +75,7 @@ func ScaleIn(cli *client.Client, imageName string, numContainersNeeded int) erro
 
 		// Itera no slice de containers e exclue os que correspondem à imagem
 		for _, container := range containers {
-			if container.Image == imageName {
+			if container.Image == Commons.ImageName {
 				err := cli.ContainerRemove(context.Background(), container.ID, types.ContainerRemoveOptions{Force: true})
 				if err != nil {
 					return err

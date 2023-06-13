@@ -1,10 +1,9 @@
-package Commons
+package SharedControl
 
 import (
 	"ContainerManager/Actuator"
 	"ContainerManager/ContainersFunc"
 	"fmt"
-	"github.com/docker/docker/client"
 )
 
 type ContainersStats struct {
@@ -21,23 +20,23 @@ func NewContainerStats() *ContainersStats {
 
 var ContainersStatsRepository = NewContainerStats()
 
-func (stats *ContainersStats) UpdateCurrentContainers(cli *client.Client, imageName string) {
-	currentReplicas, err := ContainersFunc.GetContainerCount(cli, imageName)
+func (stats *ContainersStats) CurrentNumberContainers() {
+	cli := ContainersFunc.GetConnection()
+	currentReplicas, err := ContainersFunc.GetContainerCount(cli)
 	stats.CurrentNumberReplicas = currentReplicas
 	if err != nil {
 		panic(err)
 	}
 }
 
-// func Hysteresis(cli *client.Client, imageName string, updatedNumberReplicas *float64, currentNumberReplicas int, lastInputControl float64, inputControl float64, setPoint float64, measured float64) {
-func Hysteresis(cli *client.Client, imageName string, lastInputControl float64, inputControl float64, setPoint float64, measured float64) {
+func Hysteresis(lastInputControl float64, inputControl float64, setPoint float64, measured float64) {
 	// Implementa uma deadzone ou hysteresis (range 10% superior ou inferior para evitar mudanças frequentes)
 	rangeSetPoint := setPoint * 0.10
 	upperBound := measured - setPoint
 	lowerBound := setPoint - measured
 
 	// Obtem a quantidade atual de réplicas
-	ContainersStatsRepository.UpdateCurrentContainers(cli, imageName)
+	ContainersStatsRepository.CurrentNumberContainers()
 
 	if upperBound >= rangeSetPoint {
 		// Calcula o número de réplicas, acrescentando uma porcentagem baseada no input control, para acelarar a medida que o input control sobe
@@ -50,7 +49,7 @@ func Hysteresis(cli *client.Client, imageName string, lastInputControl float64, 
 					ContainersStatsRepository.UpdatedNumberReplicas = ContainersStatsRepository.UpdatedNumberReplicas * 1.1
 				}
 
-				err := Actuator.ScaleOut(cli, imageName, int(ContainersStatsRepository.UpdatedNumberReplicas))
+				err := Actuator.ScaleOut(int(ContainersStatsRepository.UpdatedNumberReplicas))
 				if err != nil {
 					fmt.Println("Erro ao realizar o scale-out:", err)
 				}
@@ -68,7 +67,7 @@ func Hysteresis(cli *client.Client, imageName string, lastInputControl float64, 
 				if ContainersStatsRepository.UpdatedNumberReplicas < 1 {
 					ContainersStatsRepository.UpdatedNumberReplicas = 1
 				}
-				err := Actuator.ScaleIn(cli, imageName, int(ContainersStatsRepository.UpdatedNumberReplicas))
+				err := Actuator.ScaleIn(int(ContainersStatsRepository.UpdatedNumberReplicas))
 				if err != nil {
 					fmt.Println("Erro ao realizar o scale-in:", err)
 				}

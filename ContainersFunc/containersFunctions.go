@@ -1,6 +1,7 @@
 package ContainersFunc
 
 import (
+	"ContainerManager/Commons"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,7 +10,20 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"log"
+	"os"
 )
+
+func GetConnection() *client.Client {
+	// Especifica a versão da API do Docker
+	os.Setenv("DOCKER_API_VERSION", "1.42")
+
+	// Conexão com o Docker
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		panic(err)
+	}
+	return cli
+}
 
 func runContainer(client *client.Client, imagename string, containername string, port string, inputEnv []string) error {
 
@@ -87,7 +101,7 @@ func Alpine(containerName string) {
 }
 
 // getCPUUsageByImage obtém o uso de CPU de todos os contêineres que usam uma determinada imagem
-func GetCPUUsageByImage(cli *client.Client, imageName string) ([]float64, error) {
+func GetCPUUsageByImage(cli *client.Client) ([]float64, error) {
 	// Obtenha a lista de todos os containeres
 	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
@@ -99,7 +113,7 @@ func GetCPUUsageByImage(cli *client.Client, imageName string) ([]float64, error)
 
 	// Itera sobre os containeres e obtem o uso de CPU dos que correspondem à imagem
 	for _, container := range containers {
-		if container.Image == imageName {
+		if container.Image == Commons.ImageName {
 			stats, err := cli.ContainerStats(context.Background(), container.ID, false)
 			if err != nil {
 				return nil, err
@@ -128,7 +142,7 @@ func calculateCPUPercentUnix(stats *types.StatsJSON) float64 {
 	return cpuPercent
 }
 
-func GetContainerCount(cli *client.Client, imageName string) (int, error) {
+func GetContainerCount(cli *client.Client) (int, error) {
 	// Crie um contexto para a chamada de API
 	ctx := context.Background()
 
@@ -141,7 +155,7 @@ func GetContainerCount(cli *client.Client, imageName string) (int, error) {
 	// Conte os contêineres com base na imagem
 	count := 0
 	for _, container := range containers {
-		if container.Image == imageName {
+		if container.Image == Commons.ImageName {
 			count++
 		}
 	}

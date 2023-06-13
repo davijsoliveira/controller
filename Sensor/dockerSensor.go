@@ -3,7 +3,6 @@ package Sensor
 import (
 	"ContainerManager/ContainersFunc"
 	"fmt"
-	"github.com/docker/docker/client"
 )
 
 // getCPUUsageByImage obtém o uso de CPU de todos os contêineres que usam uma determinada imagem
@@ -49,9 +48,10 @@ import (
 //}
 
 // calculateAverageCPU calcula a média de utilização de CPU a partir dos valores de uso de CPU fornecidos
-func CalculateAverageCPU(cli *client.Client, imageName string) float64 {
+func CalculateAverageCPU() float64 {
+	cli := ContainersFunc.GetConnection()
 	avgCPU := 0.0
-	cpuUsage, err := ContainersFunc.GetCPUUsageByImage(cli, imageName)
+	cpuUsage, err := ContainersFunc.GetCPUUsageByImage(cli)
 	if err != nil {
 		fmt.Println("Erro ao obter uso de CPU:", err)
 	} else {
