@@ -2,50 +2,104 @@ package Sensor
 
 import (
 	"ContainerManager/ContainersFunc"
+	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
+	"time"
 )
 
-// getCPUUsageByImage obtém o uso de CPU de todos os contêineres que usam uma determinada imagem
-//func GetCPUUsageByImage(cli *client.Client, imageName string) ([]float64, error) {
-//	// Obtenha a lista de todos os containeres
-//	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	// Slice para armazenar os valores de uso de CPU
-//	cpuUsage := make([]float64, 0)
-//
-//	// Itera sobre os containeres e obtem o uso de CPU dos que correspondem à imagem
-//	for _, container := range containers {
-//		if container.Image == imageName {
-//			stats, err := cli.ContainerStats(context.Background(), container.ID, false)
-//			if err != nil {
-//				return nil, err
-//			}
-//
-//			// Decodifique as estatísticas em JSON
-//			var statsJSON types.StatsJSON
-//			if err := json.NewDecoder(stats.Body).Decode(&statsJSON); err != nil {
-//				panic(err)
-//			}
-//
-//			// Obtem o uso de CPU do container
-//			cpuPercent := calculateCPUPercentUnix(&statsJSON)
-//			cpuUsage = append(cpuUsage, cpuPercent)
-//		}
-//	}
-//
-//	return cpuUsage, nil
-//}
-//
-//// calculateCPUPercentage calcula a porcentagem de uso de CPU com base nos dados de estatísticas
-//func calculateCPUPercentUnix(stats *types.StatsJSON) float64 {
-//	cpuDelta := float64(stats.CPUStats.CPUUsage.TotalUsage) - float64(stats.PreCPUStats.CPUUsage.TotalUsage)
-//	systemDelta := float64(stats.CPUStats.SystemUsage) - float64(stats.PreCPUStats.SystemUsage)
-//	cpuPercent := (cpuDelta / systemDelta) * float64(len(stats.CPUStats.CPUUsage.PercpuUsage)) * 100.0
-//	return cpuPercent
-//}
+type StatsResponse struct {
+	TotalRequests     int64 `json:"totalRequests"`
+	RequestsPerSecond int64 `json:"requestsPerSecond"`
+}
+
+func CountConnections() {
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	var lastTotalRequests int64
+	var lastTime time.Time
+
+	for range ticker.C {
+		req, err := http.NewRequest(http.MethodGet, "http://localhost:8080/stats", nil)
+		if err != nil {
+			log.Printf("Failed to create request: %v", err)
+			continue
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Printf("Failed to make request: %v", err)
+			continue
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			log.Printf("Request failed with status: %s", resp.Status)
+			continue
+		}
+
+		var stats StatsResponse
+		err = json.NewDecoder(resp.Body).Decode(&stats)
+		if err != nil {
+			log.Printf("Failed to decode response: %v", err)
+			continue
+		}
+
+		currentTime := time.Now()
+		elapsedTime := currentTime.Sub(lastTime).Seconds()
+
+		totalRequests := stats.TotalRequests
+		requestsPerSecond := int64(float64(totalRequests-lastTotalRequests) / elapsedTime)
+
+		lastTotalRequests = totalRequests
+		lastTime = currentTime
+
+		fmt.Printf("Total Requests: %d\n", totalRequests)
+		fmt.Printf("Requests per Second: %d\n", requestsPerSecond)
+	}
+	//client := &http.Client{
+	//	Timeout: 10 * time.Second,
+	//}
+	//
+	//ticker := time.NewTicker(1 * time.Second)
+	//defer ticker.Stop()
+	//
+	//for range ticker.C {
+	//	req, err := http.NewRequest(http.MethodGet, "http://localhost:8080/stats", nil)
+	//	if err != nil {
+	//		log.Printf("Failed to create request: %v", err)
+	//		continue
+	//	}
+	//
+	//	resp, err := client.Do(req)
+	//	if err != nil {
+	//		log.Printf("Failed to make request: %v", err)
+	//		continue
+	//	}
+	//	defer resp.Body.Close()
+	//
+	//	if resp.StatusCode != http.StatusOK {
+	//		log.Printf("Request failed with status: %s", resp.Status)
+	//		continue
+	//	}
+	//
+	//	var stats StatsResponse
+	//	err = json.NewDecoder(resp.Body).Decode(&stats)
+	//	if err != nil {
+	//		log.Printf("Failed to decode response: %v", err)
+	//		continue
+	//	}
+	//
+	//	fmt.Printf("Total Requests: %d\n", stats.TotalRequests)
+	//	fmt.Printf("Requests per Second: %d\n", stats.RequestsPerSecond)
+	//}
+}
 
 // calculateAverageCPU calcula a média de utilização de CPU a partir dos valores de uso de CPU fornecidos
 func CalculateAverageCPU() float64 {
