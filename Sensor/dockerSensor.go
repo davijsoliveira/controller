@@ -9,23 +9,32 @@ import (
 	"time"
 )
 
-type StatsResponse struct {
-	TotalRequests     int64 `json:"totalRequests"`
-	RequestsPerSecond int64 `json:"requestsPerSecond"`
+type Sensor struct {
+	Measured int
 }
 
-func CountConnections() {
+type StatsResponse struct {
+	TotalRequests     int `json:"totalRequests"`
+	RequestsPerSecond int `json:"requestsPerSecond"`
+}
+
+func NewSensor() *Sensor {
+	return &Sensor{}
+}
+
+func (s *Sensor) CountConnections(toController chan int) {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
 
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
+	//ticker := time.NewTicker(1 * time.Second)
+	//defer ticker.Stop()
 
-	var lastTotalRequests int64
+	var lastTotalRequests int
 	var lastTime time.Time
 
-	for range ticker.C {
+	//for range ticker.C {
+	for {
 		req, err := http.NewRequest(http.MethodGet, "http://localhost:8080/stats", nil)
 		if err != nil {
 			log.Printf("Failed to create request: %v", err)
@@ -55,14 +64,19 @@ func CountConnections() {
 		elapsedTime := currentTime.Sub(lastTime).Seconds()
 
 		totalRequests := stats.TotalRequests
-		requestsPerSecond := int64(float64(totalRequests-lastTotalRequests) / elapsedTime)
+		//requestsPerSecond := int(float64(totalRequests-lastTotalRequests) / elapsedTime)
+		s.Measured = int(float64(totalRequests-lastTotalRequests) / elapsedTime)
 
 		lastTotalRequests = totalRequests
 		lastTime = currentTime
 
 		fmt.Printf("Total Requests: %d\n", totalRequests)
-		fmt.Printf("Requests per Second: %d\n", requestsPerSecond)
+		fmt.Printf("Requests per Second: %d\n", s.Measured)
+		//s.Measured = requestsPerSecond
+		time.Sleep(time.Second * 1)
+		toController <- s.Measured
 	}
+
 	//client := &http.Client{
 	//	Timeout: 10 * time.Second,
 	//}
@@ -70,8 +84,11 @@ func CountConnections() {
 	//ticker := time.NewTicker(1 * time.Second)
 	//defer ticker.Stop()
 	//
+	//var lastTotalRequests int64
+	//var lastTime time.Time
+	//
 	//for range ticker.C {
-	//	req, err := http.NewRequest(http.MethodGet, "http://localhost:8080/stats", nil)
+	//	req, err := http.NewRequest(http.MethodGet, "http://processor-svc/stats", nil)
 	//	if err != nil {
 	//		log.Printf("Failed to create request: %v", err)
 	//		continue
@@ -96,8 +113,17 @@ func CountConnections() {
 	//		continue
 	//	}
 	//
-	//	fmt.Printf("Total Requests: %d\n", stats.TotalRequests)
-	//	fmt.Printf("Requests per Second: %d\n", stats.RequestsPerSecond)
+	//	currentTime := time.Now()
+	//	elapsedTime := currentTime.Sub(lastTime).Seconds()
+	//
+	//	totalRequests := stats.TotalRequests
+	//	requestsPerSecond := int64(float64(totalRequests-lastTotalRequests) / elapsedTime)
+	//
+	//	lastTotalRequests = totalRequests
+	//	lastTime = currentTime
+	//
+	//	fmt.Printf("Total Requests: %d\n", totalRequests)
+	//	fmt.Printf("Requests per Second: %d\n", requestsPerSecond)
 	//}
 }
 
@@ -123,31 +149,3 @@ func CalculateAverageCPU() float64 {
 	}
 	return avgCPU
 }
-
-//func VerifyCPU(cli *client.Client) {
-//	// Especifique o ID ou nome do container
-//	containerID := "myalpine0"
-//
-//	// Crie um contexto para a chamada de API
-//	ctx := context.Background()
-//	for {
-//		time.Sleep(5 * time.Second)
-//		// Obtenha as estatísticas do container
-//		stats, err := cli.ContainerStats(ctx, containerID, false)
-//		if err != nil {
-//			panic(err)
-//		}
-//		defer stats.Body.Close()
-//
-//		// Decodifique as estatísticas em JSON
-//		var statJSON types.StatsJSON
-//		if err := json.NewDecoder(stats.Body).Decode(&statJSON); err != nil {
-//			panic(err)
-//		}
-//
-//		// Obtenha o uso de CPU do container
-//		cpuPercent := calculateCPUPercentUnix(&statJSON)
-//
-//		fmt.Printf("Uso de CPU do container %s: %.2f%%\n", containerID, cpuPercent)
-//	}
-//}

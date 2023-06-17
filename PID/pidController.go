@@ -1,10 +1,13 @@
 package PID
 
+import "fmt"
+
 const DeltaTime = 1
 
 type PIDController struct {
 	Kp, Ki, Kd                  float64
-	Setpoint, Integral          float64
+	Setpoint                    int
+	Integral                    float64
 	LastError, LastInputControl float64
 	SumPrevErrors               float64
 	Output                      float64
@@ -16,7 +19,7 @@ func NewPIDController(kp, ki, kd float64) *PIDController {
 		Kp:               kp,
 		Ki:               ki,
 		Kd:               kd,
-		Setpoint:         70.0,
+		Setpoint:         10.0,
 		Min:              1.0,
 		Max:              5.0,
 		Integral:         0.0,
@@ -27,31 +30,39 @@ func NewPIDController(kp, ki, kd float64) *PIDController {
 	}
 }
 
-func (pid *PIDController) Update(measured float64) float64 {
-	// errors
-	err := pid.Setpoint - measured
+// func (pid *PIDController) Update(fromSensor chan int, toActuator chan float64) {
+func (pid *PIDController) Update(fromSensor chan int) {
+	for {
+		measured := <-fromSensor
 
-	// Proportional
-	proportional := pid.Kp * err
+		fmt.Println("valor de measured: ", measured)
 
-	// Integrator
-	pid.Integral += DeltaTime * err
-	integrator := pid.Integral * pid.Ki
+		// errors
+		err := pid.Setpoint - measured
 
-	// Differentiator
-	differentiator := pid.Kd * (err - pid.LastError) / DeltaTime
+		// Proportional
+		proportional := pid.Kp * float64(err)
 
-	// control law
-	pid.Output = proportional + integrator + differentiator
+		// Integrator
+		pid.Integral += DeltaTime * float64(err)
+		integrator := pid.Integral * pid.Ki
 
-	//if pid.Output > pid.Max {
-	//	pid.Output = pid.Max
-	//} else if pid.Output < pid.Min {
-	//	pid.Output = pid.Min
-	//}
+		// Differentiator
+		differentiator := pid.Kd * (float64(err) - pid.LastError) / DeltaTime
 
-	pid.LastError = err
-	pid.SumPrevErrors = pid.LastError + err
+		// control law
+		pid.Output = proportional + integrator + differentiator
 
-	return pid.Output
+		//if pid.Output > pid.Max {
+		//	pid.Output = pid.Max
+		//} else if pid.Output < pid.Min {
+		//	pid.Output = pid.Min
+		//}
+
+		pid.LastError = float64(err)
+		pid.SumPrevErrors = pid.LastError + float64(err)
+
+		//toActuator <- pid.Output
+		fmt.Printf("Input Control: %.2f\n", pid.Output)
+	}
 }
