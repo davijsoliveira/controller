@@ -6,8 +6,32 @@ import (
 	"context"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 )
+
+func ScaleDeployment(replicas int32) error {
+	clientset, err := ContainersFunc.GetKubernetsCLient()
+
+	ctx := context.TODO()
+
+	// Obtendo as informações do deployment atual
+	deployment, err := clientset.AppsV1().Deployments(Commons.Namespace).Get(ctx, Commons.DeployName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	// Atualizando o número de réplicas
+	deployment.Spec.Replicas = &replicas
+
+	// Atualizando o deployment
+	_, err = clientset.AppsV1().Deployments(Commons.Namespace).Update(ctx, deployment, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // Realiza o scale-out dos containeres
 func ScaleOut(newValue int) error {

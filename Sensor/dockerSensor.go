@@ -2,8 +2,12 @@ package Sensor
 
 import (
 	"ContainerManager/ContainersFunc"
+	"context"
 	"encoding/json"
 	"fmt"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"log"
 	"net/http"
 	"time"
@@ -20,6 +24,19 @@ type StatsResponse struct {
 
 func NewSensor() *Sensor {
 	return &Sensor{}
+}
+
+func listPods(clientset *kubernetes.Clientset, namespace string) ([]v1.Pod, error) {
+	// Criando um contexto
+	ctx := context.TODO()
+
+	// Obtendo a lista de Pods no namespace especificado
+	podList, err := clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return podList.Items, nil
 }
 
 func (s *Sensor) CountConnections(toController chan int) {
@@ -64,67 +81,18 @@ func (s *Sensor) CountConnections(toController chan int) {
 		elapsedTime := currentTime.Sub(lastTime).Seconds()
 
 		totalRequests := stats.TotalRequests
-		//requestsPerSecond := int(float64(totalRequests-lastTotalRequests) / elapsedTime)
 		s.Measured = int(float64(totalRequests-lastTotalRequests) / elapsedTime)
 
 		lastTotalRequests = totalRequests
 		lastTime = currentTime
 
-		fmt.Printf("Total Requests: %d\n", totalRequests)
+		//fmt.Printf("Total Requests: %d\n", totalRequests)
 		fmt.Printf("Requests per Second: %d\n", s.Measured)
-		//s.Measured = requestsPerSecond
+
+		// Tempo para coleta
 		time.Sleep(time.Second * 1)
 		toController <- s.Measured
 	}
-
-	//client := &http.Client{
-	//	Timeout: 10 * time.Second,
-	//}
-	//
-	//ticker := time.NewTicker(1 * time.Second)
-	//defer ticker.Stop()
-	//
-	//var lastTotalRequests int64
-	//var lastTime time.Time
-	//
-	//for range ticker.C {
-	//	req, err := http.NewRequest(http.MethodGet, "http://processor-svc/stats", nil)
-	//	if err != nil {
-	//		log.Printf("Failed to create request: %v", err)
-	//		continue
-	//	}
-	//
-	//	resp, err := client.Do(req)
-	//	if err != nil {
-	//		log.Printf("Failed to make request: %v", err)
-	//		continue
-	//	}
-	//	defer resp.Body.Close()
-	//
-	//	if resp.StatusCode != http.StatusOK {
-	//		log.Printf("Request failed with status: %s", resp.Status)
-	//		continue
-	//	}
-	//
-	//	var stats StatsResponse
-	//	err = json.NewDecoder(resp.Body).Decode(&stats)
-	//	if err != nil {
-	//		log.Printf("Failed to decode response: %v", err)
-	//		continue
-	//	}
-	//
-	//	currentTime := time.Now()
-	//	elapsedTime := currentTime.Sub(lastTime).Seconds()
-	//
-	//	totalRequests := stats.TotalRequests
-	//	requestsPerSecond := int64(float64(totalRequests-lastTotalRequests) / elapsedTime)
-	//
-	//	lastTotalRequests = totalRequests
-	//	lastTime = currentTime
-	//
-	//	fmt.Printf("Total Requests: %d\n", totalRequests)
-	//	fmt.Printf("Requests per Second: %d\n", requestsPerSecond)
-	//}
 }
 
 // calculateAverageCPU calcula a média de utilização de CPU a partir dos valores de uso de CPU fornecidos

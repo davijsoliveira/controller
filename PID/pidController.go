@@ -30,8 +30,8 @@ func NewPIDController(kp, ki, kd float64) *PIDController {
 	}
 }
 
-// func (pid *PIDController) Update(fromSensor chan int, toActuator chan float64) {
-func (pid *PIDController) Update(fromSensor chan int) {
+func (pid *PIDController) Update(fromSensor chan int, toHysteresis chan []float64) {
+	//func (pid *PIDController) Update(fromSensor chan int) {
 	for {
 		measured := <-fromSensor
 
@@ -64,5 +64,15 @@ func (pid *PIDController) Update(fromSensor chan int) {
 
 		//toActuator <- pid.Output
 		fmt.Printf("Input Control: %.2f\n", pid.Output)
+
+		//Preenchendo o slice com os valores para enviar para o filtro de hysteresis
+		filterHysteresis := make([]float64, 4)
+		filterHysteresis[0] = pid.LastInputControl
+		filterHysteresis[1] = pid.Output
+		filterHysteresis[2] = float64(pid.Setpoint)
+		filterHysteresis[3] = float64(measured)
+
+		// Envia as informações para o filtro de hysteresis
+		toHysteresis <- filterHysteresis
 	}
 }

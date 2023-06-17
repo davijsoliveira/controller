@@ -9,9 +9,28 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 	"log"
 	"os"
+	"path/filepath"
 )
+
+type ContainersStats struct {
+	ScaleNumberReplicas   float64
+	CurrentNumberReplicas int
+}
+
+var ContainersStatsRepository = NewContainerStats()
+
+func NewContainerStats() *ContainersStats {
+	return &ContainersStats{
+		ScaleNumberReplicas:   1.0,
+		CurrentNumberReplicas: 1,
+	}
+}
 
 func GetConnection() *client.Client {
 	// Especifica a versão da API do Docker
@@ -25,19 +44,63 @@ func GetConnection() *client.Client {
 	return cli
 }
 
-type ContainersStats struct {
-	ScaleNumberReplicas   float64
-	CurrentNumberReplicas int
-}
+func GetKubernetsCLient() (*kubernetes.Clientset, error) {
+	// Obtendo o caminho para o arquivo kubeconfig
+	home := homedir.HomeDir()
+	kubeconfig := filepath.Join(home, ".kube", "config")
 
-func NewContainerStats() *ContainersStats {
-	return &ContainersStats{
-		ScaleNumberReplicas:   1.0,
-		CurrentNumberReplicas: 1,
+	// Criando a configuração do cliente do Kubernetes usando o kubeconfig
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	// Criando o cliente do Kubernetes
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return clientset, nil
 }
 
-var ContainersStatsRepository = NewContainerStats()
+func (stats *ContainersStats) GetReplicaCount() {
+
+	clientset, err := GetKubernetsCLient()
+
+	// Criando um contexto
+	ctx := context.TODO()
+
+	// Criando os seletores para buscar os pods com base no nome da aplicação
+	labelSelector := fmt.Sprintf("app=%s", Commons.App)
+	podList, err := clientset.CoreV1().Pods(Commons.Namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Verificando se encontrou algum pod
+	if len(podList.Items) == 0 {
+		fmt.Println("Nenhum pod encontrado para a aplicação %s", Commons.App)
+	}
+
+	// Selecionando o primeiro pod da lista
+	podApp := podList.Items[0]
+
+	// Obtendo o nome do conjunto de réplicas (ReplicaSet) associado ao pod
+	ownerReferences := podApp.ObjectMeta.OwnerReferences
+	replicaSetName := ownerReferences[0].Name
+
+	// Obtendo o objeto ReplicaSet usando o nome do namespace e o nome do ReplicaSet
+	replicaSet, err := clientset.AppsV1().ReplicaSets(Commons.Namespace).Get(ctx, replicaSetName, metav1.GetOptions{})
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Obtendo o número de réplicas definido no objeto ReplicaSet
+	numReplica := replicaSet.Spec.Replicas
+	fmt.Println("Número de réplicas atualmente:", *numReplica)
+
+	stats.CurrentNumberReplicas = int(*numReplica)
+}
 
 func (stats *ContainersStats) CurrentNumberContainers() {
 	cli := GetConnection()
