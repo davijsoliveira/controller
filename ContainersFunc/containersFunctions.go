@@ -12,10 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
 	"log"
 	"os"
-	"path/filepath"
 )
 
 type ContainersStats struct {
@@ -46,11 +44,11 @@ func GetConnection() *client.Client {
 
 func GetKubernetsCLient() (*kubernetes.Clientset, error) {
 	// Obtendo o caminho para o arquivo kubeconfig
-	home := homedir.HomeDir()
-	kubeconfig := filepath.Join(home, ".kube", "config")
+	//home := homedir.HomeDir()
+	//kubeconfig := filepath.Join(home, ".kube", "config")
 
 	// Criando a configuração do cliente do Kubernetes usando o kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	config, err := clientcmd.BuildConfigFromFlags("", Commons.Kubeconfig)
 	if err != nil {
 		log.Fatal(err)
 	}

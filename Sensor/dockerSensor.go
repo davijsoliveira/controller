@@ -1,6 +1,7 @@
 package Sensor
 
 import (
+	"ContainerManager/Commons"
 	"ContainerManager/ContainersFunc"
 	"context"
 	"encoding/json"
@@ -52,7 +53,7 @@ func (s *Sensor) CountConnections(toController chan int) {
 
 	//for range ticker.C {
 	for {
-		req, err := http.NewRequest(http.MethodGet, "http://localhost:8080/stats", nil)
+		req, err := http.NewRequest(http.MethodGet, Commons.URLManagedSystem, nil)
 		if err != nil {
 			log.Printf("Failed to create request: %v", err)
 			continue
