@@ -35,16 +35,29 @@ func (pid *PIDController) Update(fromSensor chan int, toHysteresis chan []float6
 	for {
 		measured := <-fromSensor
 
+		pid.LastInputControl = pid.Output * -1
 		fmt.Println("valor de measured: ", measured)
 
+		// Implementa uma deadzone ou hysteresis (range 10% superior ou inferior para evitar mudanças frequentes)
+		lowerBound := float64(pid.Setpoint) - (float64(pid.Setpoint) * 0.2)
+		upperBound := float64(pid.Setpoint) + (float64(pid.Setpoint) * 0.2)
+
 		// errors
-		err := pid.Setpoint - measured
+		//err := pid.Setpoint - measured
+		err := 0
+
+		// Filtro de Hyteresis
+		if measured < int(lowerBound) || measured > int(upperBound) {
+			err = pid.Setpoint - measured
+			//err = measured - pid.Setpoint
+		}
 
 		// Proportional
 		proportional := pid.Kp * float64(err)
 
 		// Integrator
-		pid.Integral += DeltaTime * float64(err)
+		//pid.Integral += DeltaTime * float64(err)
+		pid.Integral += float64(err)
 		integrator := pid.Integral * pid.Ki
 
 		// Differentiator
@@ -53,24 +66,20 @@ func (pid *PIDController) Update(fromSensor chan int, toHysteresis chan []float6
 		// control law
 		pid.Output = proportional + integrator + differentiator
 
-		//if pid.Output > pid.Max {
-		//	pid.Output = pid.Max
-		//} else if pid.Output < pid.Min {
-		//	pid.Output = pid.Min
-		//}
-
 		pid.LastError = float64(err)
 		pid.SumPrevErrors = pid.LastError + float64(err)
+		inputControl := pid.Output * -1
 
 		//toActuator <- pid.Output
-		fmt.Printf("Input Control: %.2f\n", pid.Output)
+		fmt.Printf("Input Control: %.2f\n", inputControl)
 
 		//Preenchendo o slice com os valores para enviar para o filtro de hysteresis
 		filterHysteresis := make([]float64, 4)
 		filterHysteresis[0] = pid.LastInputControl
-		filterHysteresis[1] = pid.Output
-		filterHysteresis[2] = float64(pid.Setpoint)
-		filterHysteresis[3] = float64(measured)
+		//filterHysteresis[1] = pid.Output
+		filterHysteresis[1] = inputControl
+		//filterHysteresis[2] = float64(pid.Setpoint)
+		//filterHysteresis[3] = float64(measured)
 
 		// Envia as informações para o filtro de hysteresis
 		toHysteresis <- filterHysteresis

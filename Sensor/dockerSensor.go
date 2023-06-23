@@ -48,8 +48,8 @@ func (s *Sensor) CountConnections(toController chan int) {
 	//ticker := time.NewTicker(1 * time.Second)
 	//defer ticker.Stop()
 
-	var lastTotalRequests int
-	var lastTime time.Time
+	//var lastTotalRequests int
+	//var lastTime time.Time
 
 	//for range ticker.C {
 	for {
@@ -78,16 +78,19 @@ func (s *Sensor) CountConnections(toController chan int) {
 			continue
 		}
 
-		currentTime := time.Now()
-		elapsedTime := currentTime.Sub(lastTime).Seconds()
+		//currentTime := time.Now()
+		//elapsedTime := currentTime.Sub(lastTime).Seconds()
 
 		totalRequests := stats.TotalRequests
-		s.Measured = int(float64(totalRequests-lastTotalRequests) / elapsedTime)
+		reqPerSecond := stats.RequestsPerSecond
 
-		lastTotalRequests = totalRequests
-		lastTime = currentTime
+		//s.Measured = int(float64(totalRequests-lastTotalRequests) / elapsedTime)
+		s.Measured = reqPerSecond
 
-		//fmt.Printf("Total Requests: %d\n", totalRequests)
+		//lastTotalRequests = totalRequests
+		//lastTime = currentTime
+
+		fmt.Printf("Total Requests: %d\n", totalRequests)
 		fmt.Printf("Requests per Second: %d\n", s.Measured)
 
 		// Tempo para coleta

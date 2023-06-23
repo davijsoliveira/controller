@@ -4,11 +4,62 @@ import (
 	"ContainerManager/Commons"
 	"ContainerManager/ContainersFunc"
 	"context"
+	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
 )
+
+type Actuator struct{}
+
+func NewActuator() *Actuator {
+	return &Actuator{}
+}
+
+func (a *Actuator) Scale(fromController chan []float64) {
+	iterator := 0
+	for {
+		actuatorValues := <-fromController
+		lastInputControl := actuatorValues[0]
+		inputControl := actuatorValues[1]
+
+		// Obtem a quantidade atual de réplicas
+		ContainersFunc.ContainersStatsRepository.GetReplicaCount()
+
+		if inputControl > lastInputControl {
+			//Guarda o valor em float do número de rélicas, e.g., 1.2
+
+			if ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas < float64(ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas) {
+				ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = float64(ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas) * 1.1
+
+			} else {
+				ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas * 1.1
+			}
+
+			err := ScaleDeployment(int32(ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas))
+			if err != nil {
+				fmt.Println("Erro ao realizar o scale-out:", err)
+			}
+		} else if inputControl < lastInputControl {
+			iterator++
+			//ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = float64(ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas)
+			if iterator > 10 {
+				ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas * 0.9
+				if ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas < 1 {
+					ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = 1
+				}
+				err := ScaleDeployment(int32(ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas))
+				if err != nil {
+					fmt.Println("Erro ao realizar o scale-in:", err)
+				}
+				iterator = 0
+			}
+		}
+		fmt.Println("Current Number of Replicas: : ", ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas)
+		fmt.Printf("Scale Number of Replicas: %.2f\n", ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas)
+	}
+}
 
 func ScaleDeployment(replicas int32) error {
 	clientset, err := ContainersFunc.GetKubernetsCLient()

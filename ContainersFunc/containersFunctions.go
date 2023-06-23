@@ -95,7 +95,6 @@ func (stats *ContainersStats) GetReplicaCount() {
 
 	// Obtendo o número de réplicas definido no objeto ReplicaSet
 	numReplica := replicaSet.Spec.Replicas
-	fmt.Println("Número de réplicas atualmente:", *numReplica)
 
 	stats.CurrentNumberReplicas = int(*numReplica)
 }
