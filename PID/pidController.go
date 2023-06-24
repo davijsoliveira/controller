@@ -1,6 +1,8 @@
 package PID
 
-import "fmt"
+import (
+	"fmt"
+)
 
 const DeltaTime = 1
 
@@ -11,17 +13,17 @@ type PIDController struct {
 	LastError, LastInputControl float64
 	SumPrevErrors               float64
 	Output                      float64
-	Min, Max                    float64
+	LowerBound, UpperBound      float64
 }
 
 func NewPIDController(kp, ki, kd float64) *PIDController {
 	return &PIDController{
-		Kp:               kp,
-		Ki:               ki,
-		Kd:               kd,
-		Setpoint:         10.0,
-		Min:              1.0,
-		Max:              5.0,
+		Kp:       kp,
+		Ki:       ki,
+		Kd:       kd,
+		Setpoint: 10,
+		//LowerBound:       float64(setpoint) - (float64(setpoint) * 0.2),
+		//UpperBound:       float64(setpoint) + (float64(setpoint) * 0.2),
 		Integral:         0.0,
 		LastError:        0.0,
 		LastInputControl: 0.0,
@@ -36,9 +38,9 @@ func (pid *PIDController) Update(fromSensor chan int, toHysteresis chan []float6
 		measured := <-fromSensor
 
 		pid.LastInputControl = pid.Output * -1
-		fmt.Println("valor de measured: ", measured)
+		fmt.Println(">>>>>> OUTPUT MEASURED (Requests per Seconds): ", measured)
 
-		// Implementa uma deadzone ou hysteresis (range 10% superior ou inferior para evitar mudanças frequentes)
+		// Implementa uma deadzone ou hysteresis (range 20% superior ou inferior para evitar mudanças frequentes)
 		lowerBound := float64(pid.Setpoint) - (float64(pid.Setpoint) * 0.2)
 		upperBound := float64(pid.Setpoint) + (float64(pid.Setpoint) * 0.2)
 
@@ -76,10 +78,8 @@ func (pid *PIDController) Update(fromSensor chan int, toHysteresis chan []float6
 		//Preenchendo o slice com os valores para enviar para o filtro de hysteresis
 		filterHysteresis := make([]float64, 4)
 		filterHysteresis[0] = pid.LastInputControl
-		//filterHysteresis[1] = pid.Output
 		filterHysteresis[1] = inputControl
-		//filterHysteresis[2] = float64(pid.Setpoint)
-		//filterHysteresis[3] = float64(measured)
+		filterHysteresis[2] = float64(measured)
 
 		// Envia as informações para o filtro de hysteresis
 		toHysteresis <- filterHysteresis

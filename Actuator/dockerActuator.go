@@ -23,37 +23,43 @@ func (a *Actuator) Scale(fromController chan []float64) {
 		actuatorValues := <-fromController
 		lastInputControl := actuatorValues[0]
 		inputControl := actuatorValues[1]
+		measured := actuatorValues[2]
 
 		// Obtem a quantidade atual de réplicas
 		ContainersFunc.ContainersStatsRepository.GetReplicaCount()
 
 		if inputControl > lastInputControl {
-			//Guarda o valor em float do número de rélicas, e.g., 1.2
+			if measured > Commons.UpperBound {
+				fmt.Println(">>>>>>>>> LIMITE SUPERIOR ALCANÇADO: Realizar o SCALE-OUT..........")
+				//Guarda o valor em float do número de rélicas, e.g., 1.2
+				if ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas < float64(ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas) {
+					ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = float64(ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas) * 1.1
 
-			if ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas < float64(ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas) {
-				ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = float64(ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas) * 1.1
+				} else {
+					ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas * 1.1
+				}
 
-			} else {
-				ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas * 1.1
-			}
-
-			err := ScaleDeployment(int32(ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas))
-			if err != nil {
-				fmt.Println("Erro ao realizar o scale-out:", err)
+				err := ScaleDeployment(int32(ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas))
+				iterator = 0
+				if err != nil {
+					fmt.Println("Erro ao realizar o scale-out:", err)
+				}
 			}
 		} else if inputControl < lastInputControl {
-			iterator++
-			//ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = float64(ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas)
-			if iterator > 10 {
-				ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas * 0.9
-				if ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas < 1 {
-					ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = 1
+			if measured < Commons.UpperBound {
+				iterator++
+				if iterator > 10 {
+					fmt.Println(">>>>>>>>> LIMITE INFERIOR ALCANÇADO: Realizar o SCALE-IN..........")
+					ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas * 0.9
+					if ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas < 1 {
+						ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = 1
+					}
+					err := ScaleDeployment(int32(ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas))
+					if err != nil {
+						fmt.Println("Erro ao realizar o scale-in:", err)
+					}
+					iterator = 0
 				}
-				err := ScaleDeployment(int32(ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas))
-				if err != nil {
-					fmt.Println("Erro ao realizar o scale-in:", err)
-				}
-				iterator = 0
 			}
 		}
 		fmt.Println("Current Number of Replicas: : ", ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas)

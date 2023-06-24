@@ -81,7 +81,7 @@ func (s *Sensor) CountConnections(toController chan int) {
 		//currentTime := time.Now()
 		//elapsedTime := currentTime.Sub(lastTime).Seconds()
 
-		totalRequests := stats.TotalRequests
+		//totalRequests := stats.TotalRequests
 		reqPerSecond := stats.RequestsPerSecond
 
 		//s.Measured = int(float64(totalRequests-lastTotalRequests) / elapsedTime)
@@ -90,8 +90,8 @@ func (s *Sensor) CountConnections(toController chan int) {
 		//lastTotalRequests = totalRequests
 		//lastTime = currentTime
 
-		fmt.Printf("Total Requests: %d\n", totalRequests)
-		fmt.Printf("Requests per Second: %d\n", s.Measured)
+		//fmt.Printf("Total Requests: %d\n", totalRequests)
+		//fmt.Printf("Requests per Second: %d\n", s.Measured)
 
 		// Tempo para coleta
 		time.Sleep(time.Second * 1)
