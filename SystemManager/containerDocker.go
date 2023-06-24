@@ -12,12 +12,13 @@ func main() {
 	// Instanciar controlador
 	//controller := PID.NewPIDController(0.5, 0.005, 0.0) >> Manual
 	//controller := PID.NewPIDController(0.5, 0.001, 0.0) >> Manual
+	// >> Cohen-Coon
+	//controller := PID.NewPIDController(0.48, 4.13, 0.0)
 	// >> CHR
 	//controller := PID.NewPIDController(0.016, 2.22, 0.0)
 	// >> Amigo
 	//controller := PID.NewPIDController(0.27, 0.06, 0.0)
-	// >> Ziegler-Nichols
-	//controller := PID.NewPIDController(0.48, 0.29, 0.0)
+
 	// >> Cohen-Coon PID
 	//controller := PID.NewPIDController(0.48, 4.13, 0.5)
 	// >> Amigo PID
@@ -28,8 +29,8 @@ func main() {
 	// Instancia os componentes
 	sensor := Sensor.NewSensor()
 	movingAvgFilter := SharedControl.NewMovingAverageFilter()
-	// >> Cohen-Coon
-	controller := PID.NewPIDController(0.48, 4.13, 0.0)
+	// >> Ziegler-Nichols
+	controller := PID.NewPIDController(0.48, 0.29, 0.0)
 	actuator := Actuator.NewActuator()
 
 	// Cria os canais
