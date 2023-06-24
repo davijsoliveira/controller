@@ -1,16 +1,16 @@
 package SharedControl
 
 import (
-	"ContainerManager/Actuator"
-	"ContainerManager/ContainersFunc"
+	"encoding/csv"
 	"fmt"
+	"log"
+	"os"
+	"strconv"
 )
 
 type MovingAverageFilter struct {
 	NumberRequests []int
 }
-
-type HysteresisFilter struct{}
 
 func NewMovingAverageFilter() *MovingAverageFilter {
 	return &MovingAverageFilter{
@@ -18,11 +18,21 @@ func NewMovingAverageFilter() *MovingAverageFilter {
 	}
 }
 
-func NewHysteresisFilter() *HysteresisFilter {
-	return &HysteresisFilter{}
-}
-
 func (maf *MovingAverageFilter) MovingAveragesFilter(fromSensor chan int, toController chan int) {
+	// Criar um arquivo CSV para escrita
+	file, err := os.Create("dados-requisicoes.csv")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	// Criar um escritor CSV
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Definir o separador como ponto e vírgula
+	writer.Comma = ';'
+
 	for {
 		measured := <-fromSensor
 		maf.NumberRequests = append(maf.NumberRequests, measured)
@@ -43,53 +53,17 @@ func (maf *MovingAverageFilter) MovingAveragesFilter(fromSensor chan int, toCont
 		}
 		filtered := sum / len(maf.NumberRequests)
 		fmt.Println("Valor da média", filtered)
-		toController <- filtered
-	}
-}
 
-// func Hysteresis(lastInputControl float64, inputControl float64, setPoint float64, measured float64) {
-func (histeresisfilter *HysteresisFilter) Hysteresis(fromController chan []float64) {
-	iterator := 0
-	for {
-		hysteresisFilter := <-fromController
-		lastInputControl := hysteresisFilter[0]
-		inputControl := hysteresisFilter[1]
-		//setPoint := hysteresisFilter[2]
-		//measured := hysteresisFilter[3]
-
-		// Obtem a quantidade atual de réplicas
-		ContainersFunc.ContainersStatsRepository.GetReplicaCount()
-
-		if inputControl > lastInputControl {
-			//Guarda o valor em float do número de rélicas, e.g., 1.2
-
-			if ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas < float64(ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas) {
-				ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = float64(ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas) * 1.1
-
-			} else {
-				ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas * 1.1
-			}
-
-			err := Actuator.ScaleDeployment(int32(ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas))
-			if err != nil {
-				fmt.Println("Erro ao realizar o scale-out:", err)
-			}
-		} else if inputControl < lastInputControl {
-			iterator++
-			//ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = float64(ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas)
-			if iterator > 10 {
-				ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas * 0.9
-				if ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas < 1 {
-					ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas = 1
-				}
-				err := Actuator.ScaleDeployment(int32(ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas))
-				if err != nil {
-					fmt.Println("Erro ao realizar o scale-in:", err)
-				}
-				iterator = 0
-			}
+		// GERAÇÃO DE ARQUIVO COM OS VALORES DA MÉDIA
+		outputMeasuredStr := strconv.Itoa(filtered)
+		err = writer.Write([]string{outputMeasuredStr})
+		if err != nil {
+			log.Fatal(err)
 		}
-		fmt.Println("Current Number of Replicas: : ", ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas)
-		fmt.Printf("Scale Number of Replicas: %.2f\n", ContainersFunc.ContainersStatsRepository.ScaleNumberReplicas)
+
+		// Esvaziar o buffer do escritor CSV
+		writer.Flush()
+
+		toController <- filtered
 	}
 }

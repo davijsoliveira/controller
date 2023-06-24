@@ -4,10 +4,14 @@ import (
 	"ContainerManager/Commons"
 	"ContainerManager/ContainersFunc"
 	"context"
+	"encoding/csv"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"log"
+	"os"
+	"strconv"
 	"time"
 )
 
@@ -19,6 +23,20 @@ func NewActuator() *Actuator {
 
 func (a *Actuator) Scale(fromController chan []float64) {
 	iterator := 0
+	// Criar um arquivo CSV para escrita
+	file, err := os.Create("dados-replicas.csv")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	// Criar um escritor CSV
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Definir o separador como ponto e vírgula
+	writer.Comma = ';'
+
 	for {
 		actuatorValues := <-fromController
 		lastInputControl := actuatorValues[0]
@@ -27,6 +45,16 @@ func (a *Actuator) Scale(fromController chan []float64) {
 
 		// Obtem a quantidade atual de réplicas
 		ContainersFunc.ContainersStatsRepository.GetReplicaCount()
+
+		// GERAÇÃO DE ARQUIVO COM OS VALORES DA MÉDIA
+		outputMeasuredStr := strconv.Itoa(ContainersFunc.ContainersStatsRepository.CurrentNumberReplicas)
+		err = writer.Write([]string{outputMeasuredStr})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Esvaziar o buffer do escritor CSV
+		writer.Flush()
 
 		if inputControl > lastInputControl {
 			if measured > Commons.UpperBound {
